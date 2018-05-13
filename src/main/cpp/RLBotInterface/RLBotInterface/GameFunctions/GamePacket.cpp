@@ -13,21 +13,19 @@ namespace GameFunctions
 	// FIELD INFO
 
 	// Capn
-	CREATE_CLIENT_BOOST_SHARED_MEMORY(fieldInfoShm, BoostConstants::FieldInfoSharedMemName,
-		fieldInfoMutex, BoostConstants::FieldInfoMutexName)
+	static SharedMemReader capnFieldMem(BoostConstants::FieldInfoSharedMemName, BoostConstants::FieldInfoMutexName);
 
 	extern "C" ByteBuffer RLBOT_CORE_API UpdateFieldInfoCapnp()
 	{
-		return fetchByteBufferFromSharedMem(&fieldInfoShm, &fieldInfoMutex);
+		return capnFieldMem.fetchData();
 	}
 
 	// Flat
-	CREATE_CLIENT_BOOST_SHARED_MEMORY(fieldInfoFlatShm, BoostConstants::FieldInfoFlatSharedMemName,
-		fieldInfoFlatMutex, BoostConstants::FieldInfoFlatMutexName)
+	static SharedMemReader flatFieldMem(BoostConstants::FieldInfoFlatSharedMemName, BoostConstants::FieldInfoFlatMutexName);
 
 	extern "C" ByteBuffer RLBOT_CORE_API UpdateFieldInfoFlatbuffer()
 	{
-		return fetchByteBufferFromSharedMem(&fieldInfoFlatShm, &fieldInfoFlatMutex);
+		return flatFieldMem.fetchData();
 	}
 
 	// Proto
@@ -42,21 +40,19 @@ namespace GameFunctions
 	//////////////
 
 	// Capnp
-	CREATE_CLIENT_BOOST_SHARED_MEMORY(gameTickShm, BoostConstants::GameDataSharedMemName,
-		gameTickMutex, BoostConstants::GameDataMutexName)
+	static SharedMemReader capnTickMem(BoostConstants::GameDataSharedMemName, BoostConstants::GameDataMutexName);
 
 	extern "C" ByteBuffer RLBOT_CORE_API UpdateLiveDataPacketCapnp()
 	{
-		return fetchByteBufferFromSharedMem(&gameTickShm, &gameTickMutex);
+		return capnTickMem.fetchData();
 	}
 
 	// Flat
-	CREATE_CLIENT_BOOST_SHARED_MEMORY(gameTickFlatShm, BoostConstants::GameDataFlatSharedMemName,
-		gameTickFlatMutex, BoostConstants::GameDataFlatMutexName)
+	static SharedMemReader flatTickMem(BoostConstants::GameDataFlatSharedMemName, BoostConstants::GameDataFlatMutexName);
 
 	extern "C" ByteBuffer RLBOT_CORE_API UpdateLiveDataPacketFlatbuffer()
 	{
-		return fetchByteBufferFromSharedMem(&gameTickFlatShm, &gameTickFlatMutex);
+		return flatTickMem.fetchData();
 	}
 
 	// Proto

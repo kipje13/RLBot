@@ -75,6 +75,14 @@ class Atba(BaseAgent):
             self.renderer.draw_rect_3d(car_render_location, 100, 100, True, self.renderer.create_color(200, 0, 0, 0))
             self.renderer.draw_string_2d(1000, 500, 10, 10, text_render_strX, self.renderer.white())
             self.renderer.draw_string_3d(ball_render_location, 20, 20, "BALL", self.renderer.black())
+
+            ball_prediction = self.get_ball_prediction()
+            if ball_prediction is not None:
+                y_series = ""
+                for i in range(0, ball_prediction.SlicesLength()):
+                    y_series += str(ball_prediction.Slices(i).Physics().Location().Y()) + "  "
+                self.renderer.draw_string_2d(20, 20, 1, 1, y_series, self.renderer.white())
+
             self.renderer.end_rendering()
         if my_car.physics.location.x > 0:
             self.cleared = True

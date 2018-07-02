@@ -404,6 +404,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="CallbackProcessor\CallbackProcessor.cpp" />
+    <ClCompile Include="GameFunctions\BallPrediction.cpp" />
     <ClCompile Include="GameFunctions\GameFunctions.cpp" />
     <ClCompile Include="GameFunctions\GamePacket.cpp" />
     <ClCompile Include="GameFunctions\PlayerInfo.cpp" />
@@ -413,6 +414,7 @@
   <ItemGroup>
     <ClInclude Include="CallbackProcessor\CallbackProcessor.hpp" />
     <ClInclude Include="CallbackProcessor\SharedMemoryDefinitions.hpp" />
+    <ClInclude Include="GameFunctions\BallPrediction.hpp" />
     <ClInclude Include="GameFunctions\GameFunctions.hpp" />
     <ClInclude Include="GameFunctions\GamePacket.hpp" />
     <ClInclude Include="GameFunctions\PlayerInfo.hpp" />

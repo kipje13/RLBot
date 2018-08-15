@@ -56,6 +56,10 @@ class ConfigObject:
     def getfloat(self, section, option, index=None):
         return self.get_header(section).getfloat(option, index=index)
 
+    def init_indices(self, max_index):
+        for header in self.headers.values():
+            header.init_indices(max_index)
+
     def parse_file(self, config, max_index=None):
         """
         Parses the file internally setting values
@@ -97,8 +101,8 @@ class ConfigObject:
         return new_object
 
     def has_section(self, header_name):
-        """Returns true if the header exist and has had at least one value set on it."""
-        return header_name in self.headers and self.headers[header_name].has_values
+        """Returns true if the header exists"""
+        return header_name in self.headers
 
     def get_raw_file(self):
         """Returns the raw file from the parser so it can be used to be parsed by other config objects."""
@@ -110,7 +114,6 @@ class ConfigHeader:
     def __init__(self):
         self.values = {}
         self.is_indexed = False  # if True then indexes will be applied to all values otherwise they will not be
-        self.has_values = False  # False if no values have been set on this header object.
         self.max_index = -1
 
     def __getitem__(self, x):
@@ -130,8 +133,6 @@ class ConfigHeader:
             description = name
         if value is not None and self.is_indexed and not isinstance(value, list):
             raise Exception('Indexed values must be a list')
-        if value is not None:
-            self.has_values = True
         self.values[name] = ConfigValue(value_type, default=default, description=description, value=value)
         return self
 
@@ -151,7 +152,6 @@ class ConfigHeader:
                 raise TypeError("Value should be a list when not giving an index in an indexed header")
             else:
                 raise IndexError("Index cannot be None when not giving a list in an indexed header")
-        self.has_values = True
         self.values[option].set_value(value=value, index=index)
         return self
 
@@ -167,11 +167,16 @@ class ConfigHeader:
     def getfloat(self, option, index=None):
         return float(self.values[option].get_value(index=index))
 
+    def init_indices(self, max_index):
+        if not self.is_indexed:
+            return
+        self.max_index = max_index
+        for value_name in self.values:
+            self.values[value_name].init_indices(max_index)
+
     def parse_file(self, config_parser, max_index=None):
         if self.is_indexed and max_index is None:
             return  # if we do not know the index lets skip instead of crashing
-
-        self.has_values = True
 
         if not self.is_indexed:
             max_index = None
@@ -184,7 +189,6 @@ class ConfigHeader:
     def reset(self):
         for value_name in self.values:
             self.values[value_name].reset()
-        self.has_values = False
 
     def __str__(self):
         string = ''
@@ -236,7 +240,10 @@ class ConfigValue:
             return self.default
 
         if index is not None:
-            value = self.value[index]
+            if self.value[index] is None:
+                return self.default
+            else:
+                value = self.value[index]
         else:
             value = self.value
 
@@ -250,6 +257,9 @@ class ConfigValue:
 
     def copy(self):
         return ConfigValue(self.type, self.default, self.description, self.value)
+
+    def init_indices(self, max_index):
+        self.value = [None]*max_index
 
     def parse_file(self, config_parser, value_name, max_index=None):
         if isinstance(config_parser, ConfigHeader):

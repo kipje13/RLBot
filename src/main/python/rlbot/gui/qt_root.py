@@ -13,6 +13,7 @@ from rlbot.gui.index_manager import IndexManager
 from rlbot.gui.design.qt_gui import Ui_MainWindow
 from rlbot.gui.gui_agent import GUIAgent
 from rlbot.gui.preset_editors import CarCustomisationDialog, AgentCustomisationDialog
+from rlbot.gui.mutator_editor import MutatorEditor
 
 from rlbot.utils.file_util import get_python_root, get_rlbot_directory
 from rlbot.agents.base_agent import BOT_CONFIG_MODULE_HEADER, BOT_NAME_KEY
@@ -47,14 +48,12 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
 
         self.car_customisation = CarCustomisationDialog(self)
         self.agent_customisation = AgentCustomisationDialog(self)
+        self.mutator_customisation = MutatorEditor(self)
 
         if os.path.isfile(DEFAULT_RLBOT_CONFIG_LOCATION):
             self.load_overall_config(DEFAULT_RLBOT_CONFIG_LOCATION)
         else:
-            self.load_overall_config("")
-            self.frame_3.setDisabled(True)
-            self.match_settings_groupbox.setDisabled(True)
-            self.cfg_save_pushbutton.setDisabled(True)
+            self.load_off_disk_overall_config()
 
         self.init_match_settings()
         self.update_match_settings()
@@ -102,6 +101,13 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         Starts a match with the current configuration
         :return:
         """
+
+        if self.setup_manager is not None:
+            self.setup_manager.shut_down(time_limit=5, kill_all_pids=False)
+            # Leave any external processes alive, e.g. Java or C#, since it can
+            # be useful to keep them around. The user can kill them with the
+            # Kill Bots button instead.
+
         agent_configs_dict = {}
         loadout_configs_dict = {}
         for agent in self.agents:
@@ -121,7 +127,6 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         self.setup_manager.load_config(self.overall_config, self.overall_config_path, agent_configs, loadout_configs)
         self.setup_manager.launch_bot_processes()
         self.setup_manager.run()
-        self.setup_manager.shut_down()
 
     def connect_functions(self):
         """
@@ -165,6 +170,8 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
             elif isinstance(child, QCheckBox):
                 child.toggled.connect(self.match_settings_edit_event)
 
+        self.edit_mutators_pushbutton.clicked.connect(self.mutator_customisation.popup)
+        self.kill_bots_pushbutton.clicked.connect(self.kill_bots)
         self.run_button.clicked.connect(self.run_button_pressed)
 
     def bot_config_edit_event(self, value=None):
@@ -214,8 +221,13 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         elif sender is self.agent_preset_combobox:
             if value and self.bot_config_groupbox.isEnabled() and self.current_bot is not None:
                 self.current_bot.set_agent_preset(self.agent_presets[value])
+                agent.set_name(agent.agent_preset.config.get(BOT_CONFIG_MODULE_HEADER, BOT_NAME_KEY))
+                self.ign_lineedit.setText(agent.ingame_name)
         elif sender is self.bot_level_slider:
             agent.set_bot_skill(value / 100)
+
+        if self.cfg_autosave_checkbutton.isChecked() and os.path.isfile(self.overall_config_path):
+            self.save_overall_config(10)
 
     def update_bot_type_combobox(self):
         """
@@ -231,7 +243,7 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
             self.psyonix_bot_frame.setHidden(False)
             self.rlbot_frame.setHidden(True)
             self.extra_line.setHidden(False)
-        elif self.bot_type_combobox.currentText() == 'Human' or self.bot_type_combobox.currentText() == 'Party Member Bot' or self.bot_type_combobox.currentText() == 'Controller Passthrough':
+        elif self.bot_type_combobox.currentText() == 'Human' or self.bot_type_combobox.currentText() == 'Party Member Bot':
             self.psyonix_bot_frame.setHidden(True)
             self.rlbot_frame.setHidden(True)
             self.extra_line.setHidden(True)
@@ -258,6 +270,9 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         elif sender is self.orange_color_spinbox:
             self.overall_config.set_value(TEAM_CONFIGURATION_HEADER, "Team Orange Color", value)
 
+        if self.cfg_autosave_checkbutton.isChecked() and os.path.isfile(self.overall_config_path):
+            self.save_overall_config(10)
+
     def update_team_settings(self):
         """
         Sets all team settings widgets to the value in the overall config
@@ -267,6 +282,22 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         self.orange_name_lineedit.setText(self.overall_config.get(TEAM_CONFIGURATION_HEADER, "Team Orange Name"))
         self.blue_color_spinbox.setValue(self.overall_config.getint(TEAM_CONFIGURATION_HEADER, "Team Blue Color"))
         self.orange_color_spinbox.setValue(self.overall_config.getint(TEAM_CONFIGURATION_HEADER, "Team Orange Color"))
+
+    def load_off_disk_overall_config(self):
+        self.cfg_autosave_checkbutton.setChecked(False)
+        self.cfg_autosave_checkbutton.setDisabled(True)
+        if self.overall_config is None:
+            self.overall_config = create_bot_config_layout()
+        GUIAgent.overall_config = self.overall_config
+        self.overall_config.init_indices(10)
+        self.overall_config_path = ""
+        self.load_agents()
+        self.update_teams_listwidgets()
+        self.cfg_file_path_lineedit.setText(self.overall_config_path)
+        self.update_team_settings()
+        self.car_customisation.update_presets_widgets()
+        self.agent_customisation.update_presets_widgets()
+        self.mutator_customisation.update_comboboxes()
 
     def load_overall_config(self, config_path=None):
         """
@@ -293,8 +324,6 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
             if not raw_parser.has_section(section):
                 self.popup_message("Config file is missing the section {}, not loading it!".format(section), "Invalid Config File", QMessageBox.Warning)
                 return
-        for item in (self.frame_3, self.match_settings_groupbox, self.cfg_save_pushbutton):
-            item.setEnabled(True)
         self.overall_config_path = config_path
         self.overall_config.parse_file(raw_parser, 10)
         self.load_agents()
@@ -303,30 +332,38 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         self.update_team_settings()
         self.car_customisation.update_presets_widgets()
         self.agent_customisation.update_presets_widgets()
+        self.mutator_customisation.update_comboboxes()
 
     def save_overall_config(self, time_out=0):
         """
         Schedules a save after given time_out
-        :param time_out: The amound of milliseconds it should wait before saving
+        :param time_out: The amount of seconds it should wait before saving
         :return:
         """
         def save():
             if not os.path.exists(self.overall_config_path):
                 return
-            with open(self.overall_config_path, "w") as f:
-                f.write(str(self.fixed_indices()))
+            self.overall_config_timer.setInterval(1000)
+            if self.remaining_save_timer > 0:
+                self.statusbar.showMessage("Saving Overall Config in " + str(self.remaining_save_timer) + " seconds")
+                self.remaining_save_timer -= 1
+            else:
+                with open(self.overall_config_path, "w") as f:
+                    f.write(str(self.fixed_indices()))
+                self.statusbar.showMessage("Saved Overall Config to " + self.overall_config_path, 5000)
+                self.overall_config_timer.stop()
         if self.overall_config_timer is None:
             self.overall_config_timer = QTimer()
-            self.overall_config_timer.setSingleShot(True)
             self.overall_config_timer.timeout.connect(save)
         save_path = self.overall_config_path
-        if save_path is None or not os.path.exists(save_path):
+        if save_path is None or not os.path.isfile(save_path):
             save_path = QFileDialog.getSaveFileName(self, "Save Overall Config", "", "Config Files (*.cfg)")[0]
             if not save_path:
-                self.statusbar.showMessage("Unable to save a config without location", 5000)
+                self.statusbar.showMessage("Unable to save the configuration without a path", 5000)
                 return
             self.overall_config_path = save_path
-        self.overall_config_timer.start(time_out)
+        self.remaining_save_timer = time_out
+        self.overall_config_timer.start(0)
 
     def load_selected_bot(self):
         """
@@ -362,7 +399,7 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         # load the bot parameters into the edit frame
         agent_type = agent.get_participant_type()
 
-        known_types = ['human', 'psyonix', 'rlbot', 'party_member_bot', 'controller_passthrough']
+        known_types = ['human', 'psyonix', 'rlbot', 'party_member_bot']
         assert agent_type in known_types, 'Bot has unknown type: %s' % agent_type
 
         self.bot_type_combobox.setCurrentIndex(known_types.index(agent_type))
@@ -536,8 +573,6 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
             else:
                 self.blue_listwidget.setCurrentRow(self.blue_listwidget.count() - 1)
 
-
-
     def add_loadout_preset(self, file_path: str):
         """
         Loads a preset using file_path with all values from that path loaded
@@ -577,8 +612,6 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         """
         self.mode_type_combobox.addItems(game_mode_types)
         self.map_type_combobox.addItems(map_types)
-        self.match_length_combobox.addItems(match_length_types)
-        self.boost_type_combobox.addItems(boost_types)
 
     def update_match_settings(self):
         """
@@ -589,8 +622,6 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         self.map_type_combobox.setCurrentText(self.overall_config.get(MATCH_CONFIGURATION_HEADER, GAME_MAP))
         self.skip_replays_checkbox.setChecked(self.overall_config.getboolean(MATCH_CONFIGURATION_HEADER, SKIP_REPLAYS))
         self.instant_start_checkbox.setChecked(self.overall_config.getboolean(MATCH_CONFIGURATION_HEADER, INSTANT_START))
-        self.match_length_combobox.setCurrentText(self.overall_config.get(MUTATOR_CONFIGURATION_HEADER, MUTATOR_MATCH_LENGTH))
-        self.boost_type_combobox.setCurrentText(self.overall_config.get(MUTATOR_CONFIGURATION_HEADER, MUTATOR_BOOST_AMOUNT))
 
     def match_settings_edit_event(self, value):
         """
@@ -613,6 +644,9 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         elif sender is self.boost_type_combobox:
             self.overall_config.set_value(MUTATOR_CONFIGURATION_HEADER, MUTATOR_BOOST_AMOUNT, value)
 
+        if self.cfg_autosave_checkbutton.isChecked() and os.path.isfile(self.overall_config_path):
+            self.save_overall_config(10)
+
     def popup_message(self, message: str, title: str, icon=QMessageBox.Warning):
         popup = QMessageBox(self)
         popup.setIcon(icon)
@@ -620,6 +654,12 @@ class RLBotQTGui(QMainWindow, Ui_MainWindow):
         popup.setText(message)
         popup.setStandardButtons(QMessageBox.Ok)
         popup.exec_()
+
+    def kill_bots(self):
+        if self.setup_manager is not None:
+            self.setup_manager.shut_down(time_limit=5, kill_all_pids=True)
+        else:
+            print("There gotta be some setup manager already")
 
     @staticmethod
     def main():

@@ -1,11 +1,14 @@
-﻿using rlbot.flat;
+using rlbot.flat;
 using RLBotDotNet.Utils;
 using RLBotDotNet.Server;
 using System;
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Collections.Generic;
 using System.Threading;
 using System.Linq;
 using System.IO;
+using RLBotDotNet.Renderer;
 
 namespace RLBotDotNet
 {
@@ -15,10 +18,18 @@ namespace RLBotDotNet
     /// <typeparam name="T">The custom bot class that should be run.</typeparam>
     public class BotManager<T> where T : Bot
     {
+        private readonly ConcurrentDictionary<int, BotLoopRenderer> _renderers;
         private ManualResetEvent botRunEvent = new ManualResetEvent(false);
         private List<BotProcess> botProcesses = new List<BotProcess>();
-        private GameTickPacket currentGameTickPacket;
         private Thread serverThread;
+        
+        /// <summary>
+        /// Constructs a new instance of BotManager.
+        /// </summary>
+        public BotManager()
+        {
+            _renderers = new ConcurrentDictionary<int, BotLoopRenderer>();
+        }
 
         /// <summary>
         /// Adds a bot to the <see cref="botProcesses"/> list if the index is not there already.
@@ -52,10 +63,30 @@ namespace RLBotDotNet
         /// <param name="bot"></param>
         private void RunBot(Bot bot)
         {
+            var renderer = GetRendererForBot(bot);
+            bot.SetRenderer(renderer);
             while (true)
             {
-                Controller botInput = bot.GetOutput(currentGameTickPacket);
-                RLBotInterface.SetBotInput(botInput, bot.index);
+                try
+                {
+                    renderer.StartPacket();
+                    GameTickPacket gameTickPacket = RLBotInterface.GetGameTickPacket();
+                    Controller botInput = bot.GetOutput(gameTickPacket);
+                    RLBotInterface.SetBotInput(botInput, bot.index);
+                    renderer.FinishAndSendIfDifferent();
+                }
+                catch (FlatbuffersPacketException)
+                {
+                    // Ignore if the packet size is too small. No need to warn the user.
+                }
+                catch (Exception e)
+                {
+                    // Don't crash the bot and give the user the details of the exception instead.
+                    Console.WriteLine(e.GetType());
+                    Console.WriteLine(e.Message);
+                    Console.WriteLine(e.StackTrace);
+                }
+
                 botRunEvent.WaitOne();
             }
         }
@@ -65,19 +96,26 @@ namespace RLBotDotNet
         /// </summary>
         private void MainBotLoop()
         {
+            TimeSpan timerResolution = TimerResolutionInterop.CurrentResolution;
+            TimeSpan targetSleepTime = new TimeSpan(166667); // 16.6667 ms, or 60 FPS
+
+            Stopwatch stopwatch = new Stopwatch();
             while (true)
             {
-                try
-                {
-                    GetGameTickPacket();
-                    botRunEvent.Set();
-                    botRunEvent.Reset();
-                    Thread.Sleep(16);
-                }
-                catch (Exception e)
-                {
-                    Console.WriteLine(e.Message);
-                }
+                // Start the timer
+                stopwatch.Restart();
+
+                // Set off events that end up running the bot code later down the line
+                botRunEvent.Set();
+                botRunEvent.Reset();
+
+                // Sleep efficiently (but inaccurately) for as long as we can
+                TimeSpan maxInaccurateSleepTime = targetSleepTime - stopwatch.Elapsed - timerResolution;
+                if (maxInaccurateSleepTime > TimeSpan.Zero)
+                    Thread.Sleep(maxInaccurateSleepTime);
+
+                // We could sleep the rest of the time accurately with the use of a spin-wait, but since the main bot loop doesn't have to fire at precise intervals it's reasonable to omit this step
+                // while (stopwatch.Elapsed < targetSleepTime);
             }
         }
 
@@ -106,6 +144,10 @@ namespace RLBotDotNet
             // Don't start main loop until botProcesses has at least 1 bot
             while (botProcesses.Count == 0)
                 Thread.Sleep(16);
+
+            // Ensure best available resolution before starting the main loop to reduce CPU usage
+            TimerResolutionInterop.Query(out int minRes, out _, out int currRes);
+            if (currRes > minRes) TimerResolutionInterop.SetResolution(minRes);
 
             MainBotLoop();
         }
@@ -174,14 +216,9 @@ namespace RLBotDotNet
             }
         }
 
-        /// <summary>
-        /// Calls <see cref="RLBotInterface.GetGameTickPacket"/>, and also sets <see cref="currentGameTickPacket"/>.
-        /// </summary>
-        /// <returns>The current frame's GameTickPacket.</returns>
-        private GameTickPacket GetGameTickPacket()
+        private BotLoopRenderer GetRendererForBot(Bot bot)
         {
-            currentGameTickPacket = RLBotInterface.GetGameTickPacket();
-            return currentGameTickPacket;
+            return _renderers.GetOrAdd(bot.index, new BotLoopRenderer(bot.index));
         }
     }
 }

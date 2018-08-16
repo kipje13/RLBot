@@ -76,18 +76,43 @@ class Atba(BaseAgent):
             self.renderer.draw_string_2d(1000, 500, 10, 10, text_render_strX, self.renderer.white())
             self.renderer.draw_string_3d(ball_render_location, 20, 20, "BALL", self.renderer.black())
 
-            ball_prediction = self.get_ball_prediction()
-            if ball_prediction is not None:
-                y_series = ""
-                for i in range(0, ball_prediction.SlicesLength()):
-                    y_series += str(ball_prediction.Slices(i).Physics().Location().Y()) + "  "
-                self.renderer.draw_string_2d(20, 20, 1, 1, y_series, self.renderer.white())
-
             self.renderer.end_rendering()
-        if my_car.physics.location.x > 0:
+
+            self.render_ball_prediction()
+
+        if my_car.physics.location.z > 50:
             self.cleared = True
         else:
             self.cleared = False
+
+    def render_ball_prediction(self):
+        ball_prediction = self.get_ball_prediction()
+
+        if ball_prediction is not None:
+
+            self.renderer.begin_rendering('prediction1')
+            colors = self.setup_rainbow()
+            for i in range(0, ball_prediction.SlicesLength() // 2):
+                current_slice = ball_prediction.Slices(i).Physics().Location()
+                self.renderer.draw_rect_3d(current_slice, 8, 8, True, colors[i % len(colors)], True)
+            self.renderer.end_rendering()
+
+            self.renderer.begin_rendering('prediction2')
+            colors = self.setup_rainbow()
+            for i in range(ball_prediction.SlicesLength() // 2, ball_prediction.SlicesLength()):
+                current_slice = ball_prediction.Slices(i).Physics().Location()
+                self.renderer.draw_rect_3d(current_slice, 8, 8, True, colors[i % len(colors)], True)
+            self.renderer.end_rendering()
+
+    def setup_rainbow(self):
+        return [
+            self.renderer.create_color(255, 255, 100, 100),
+            self.renderer.create_color(255, 255, 255, 100),
+            self.renderer.create_color(255, 100, 255, 100),
+            self.renderer.create_color(255, 100, 255, 255),
+            self.renderer.create_color(255, 100, 100, 255),
+            self.renderer.create_color(255, 255, 100, 255)
+        ]
 
     def load_config(self, config_header):
         self.flip_turning = config_header.getboolean('flip_turning')

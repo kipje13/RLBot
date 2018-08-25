@@ -11,6 +11,7 @@ class Atba(BaseAgent):
     test_rendering = False
     test_quickchat = False
     test_dropshot = False
+    test_ball_prediction = False
     cleared = False
 
     def get_output(self, game_tick_packet: GameTickPacket) -> SimpleControllerState:
@@ -42,6 +43,9 @@ class Atba(BaseAgent):
 
         if self.test_dropshot:
             self.do_dropshot_tile_test(game_tick_packet)
+
+        if self.test_ball_prediction:
+            self.render_ball_prediction()
 
         controller_state.throttle = 1.0
         controller_state.steer = turn
@@ -82,7 +86,7 @@ class Atba(BaseAgent):
 
             if game_tick_packet.game_info.is_kickoff_pause:
                 # Color showcase
-                self.renderer.draw_string_2d(10, 120, 1, 1, "black", self.renderer.black())
+                self.renderer.draw_string_2d(10, 120, 1, 1, "black",self.renderer.black())
                 self.renderer.draw_string_2d(10, 135, 1, 1, "white", self.renderer.white())
                 self.renderer.draw_string_2d(10, 150, 1, 1, "gray", self.renderer.gray())
                 self.renderer.draw_string_2d(10, 165, 1, 1, "red", self.renderer.red())
@@ -96,6 +100,7 @@ class Atba(BaseAgent):
                 self.renderer.draw_string_2d(10, 285, 1, 1, "pink", self.renderer.pink())
                 self.renderer.draw_string_2d(10, 300, 1, 1, "purple", self.renderer.purple())
             self.renderer.end_rendering()
+
         if my_car.physics.location.z > 50:
             self.cleared = True
         else:
@@ -134,11 +139,41 @@ class Atba(BaseAgent):
 
         self.renderer.end_rendering()
 
+    def render_ball_prediction(self):
+        ball_prediction = self.get_ball_prediction()
+
+        if ball_prediction is not None:
+
+            self.renderer.begin_rendering('prediction1')
+            colors = self.setup_rainbow()
+            for i in range(0, ball_prediction.SlicesLength() // 2):
+                current_slice = ball_prediction.Slices(i).Physics().Location()
+                self.renderer.draw_rect_3d(current_slice, 8, 8, True, colors[i % len(colors)], True)
+            self.renderer.end_rendering()
+
+            self.renderer.begin_rendering('prediction2')
+            colors = self.setup_rainbow()
+            for i in range(ball_prediction.SlicesLength() // 2, ball_prediction.SlicesLength()):
+                current_slice = ball_prediction.Slices(i).Physics().Location()
+                self.renderer.draw_rect_3d(current_slice, 8, 8, True, colors[i % len(colors)], True)
+            self.renderer.end_rendering()
+
+    def setup_rainbow(self):
+        return [
+            self.renderer.create_color(255, 255, 100, 100),
+            self.renderer.create_color(255, 255, 255, 100),
+            self.renderer.create_color(255, 100, 255, 100),
+            self.renderer.create_color(255, 100, 255, 255),
+            self.renderer.create_color(255, 100, 100, 255),
+            self.renderer.create_color(255, 255, 100, 255)
+        ]
+
     def load_config(self, config_header):
         self.flip_turning = config_header.getboolean('flip_turning')
         self.test_rendering = config_header.getboolean('test_rendering')
         self.test_quickchat = config_header.getboolean('test_quickchat')
         self.test_dropshot = config_header.getboolean('test_dropshot')
+        self.test_ball_prediction = config_header.getboolean('test_ball_prediction')
 
     @staticmethod
     def create_agent_configurations(config: ConfigObject):
@@ -147,6 +182,7 @@ class Atba(BaseAgent):
         params.add_value('test_rendering', bool, default=False, description='if true bot will render random stuff')
         params.add_value('test_quickchat', bool, default=False, description='if true bot will spam quickchats')
         params.add_value('test_dropshot', bool, default=False, description='if true bot will render dropshot info')
+        params.add_value('test_ball_prediction', bool, default=False, description='if true bot will render ball prediction')
 
 class Vector2:
     def __init__(self, x=0.0, y=0.0):

@@ -71,7 +71,7 @@ namespace RLBotDotNet
                 {
                     renderer.StartPacket();
                     GameTickPacket gameTickPacket = RLBotInterface.GetGameTickPacket();
-                    Controller botInput = bot.GetOutput(gameTickPacket);
+                    Controller botInput = bot.GetOutputInternal(gameTickPacket);
                     RLBotInterface.SetBotInput(botInput, bot.index);
                     renderer.FinishAndSendIfDifferent();
                 }

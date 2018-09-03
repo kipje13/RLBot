@@ -25,7 +25,7 @@ namespace RLBotDotNet
         /// <summary>
         /// The index of the bot in the match.
         /// </summary>
-        public readonly int index;
+        public int index { get; private set; }
 
         private DateTime lastChatTime;
         private bool resetChatTime;
@@ -48,6 +48,28 @@ namespace RLBotDotNet
         /// <param name="gameTickPacket">The game data input.</param>
         /// <returns>Should return the Controller outputs that the bot should execute.</returns>
         public abstract Controller GetOutput(GameTickPacket gameTickPacket);
+
+
+        /// <summary>
+        /// Updates the bot index before calling GetOutput.
+        /// </summary>
+        /// <param name="gameTickPacket">The game data input.</param>
+        /// <returns></returns>
+        internal Controller GetOutputInternal(GameTickPacket gameTickPacket)
+        {
+            for (int i = 0; i < gameTickPacket.PlayersLength; i++)
+            {
+                if (gameTickPacket.Players(i).Value.Name == name)
+                {
+                    index = i;
+                    break;
+                }
+            }
+
+            Console.WriteLine(index);
+
+            return GetOutput(gameTickPacket);
+        }
 
         /// <summary>
         /// Gets the renderer.

@@ -66,8 +66,6 @@ namespace RLBotDotNet
                 }
             }
 
-            Console.WriteLine(index);
-
             return GetOutput(gameTickPacket);
         }
 

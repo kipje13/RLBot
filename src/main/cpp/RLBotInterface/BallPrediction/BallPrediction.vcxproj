@@ -1,5 +1,5 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<Project DefaultTargets="Build" ToolsVersion="14.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
     <ProjectConfiguration Include="Debug|Win32">
       <Configuration>Debug</Configuration>
@@ -22,31 +22,32 @@
     <ProjectGuid>{F74571F5-5ADA-4CC5-AAB8-69A4EE1E739D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>BallPrediction</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v140</PlatformToolset>
+    <PlatformToolset>v141</PlatformToolset>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>Unicode</CharacterSet>
   </PropertyGroup>
@@ -81,7 +82,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <IncludePath>$(SolutionDir)RLBotInterface;$(SolutionDir)RLBotMessages;$(FlatbufferDir);$(ProjectDir)..\lib\flatbuffers\include;$(IncludePath)</IncludePath>
+    <IncludePath>$(SolutionDir)BallPrediction\rlutilities\cpp\inc;$(SolutionDir)RLBotInterface;$(SolutionDir)RLBotMessages;$(FlatbufferDir);$(ProjectDir)..\lib\flatbuffers\include;$(IncludePath)</IncludePath>
     <OutDir>$(SolutionDir)RLBotInterface\Bin\$(Platform)\$(Configuration)\</OutDir>
     <IntDir>Obj\$(Platform)\$(Configuration)\</IntDir>
     <ExecutablePath>$(SolutionDir)RLBotInterface\Bin\$(Platform)\$(Configuration)\;$(ExecutablePath)</ExecutablePath>
@@ -164,26 +165,19 @@
     <Text Include="ReadMe.txt" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="inc\Ball.h" />
-    <ClInclude Include="inc\bit_packing.h" />
-    <ClInclude Include="inc\bvh.h" />
     <ClInclude Include="inc\DynamicState.h" />
-    <ClInclude Include="inc\linalg.h" />
-    <ClInclude Include="inc\mat.h" />
-    <ClInclude Include="inc\morton.h" />
-    <ClInclude Include="inc\pitch.h" />
-    <ClInclude Include="inc\primitives.h" />
     <ClInclude Include="inc\timer.h" />
-    <ClInclude Include="inc\vec.h" />
     <ClInclude Include="PredictionService.hpp" />
     <ClInclude Include="targetver.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="BallPrediction.cpp" />
     <ClCompile Include="PredictionService.cpp" />
-    <ClCompile Include="src\bvh.cpp" />
-    <ClCompile Include="src\pitch.cpp" />
-    <ClCompile Include="src\primitives.cpp" />
+    <ClCompile Include="rlutilities\cpp\src\simulation\ball.cc" />
+    <ClCompile Include="rlutilities\cpp\src\simulation\bvh.cc" />
+    <ClCompile Include="rlutilities\cpp\src\simulation\field.cc" />
+    <ClCompile Include="rlutilities\cpp\src\simulation\geometry.cc" />
+    <ClCompile Include="rlutilities\cpp\src\simulation\mesh.cc" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RLBotInterface\RLBotInterface.vcxproj">

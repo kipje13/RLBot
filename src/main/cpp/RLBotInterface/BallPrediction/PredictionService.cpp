@@ -34,7 +34,7 @@ namespace BallPrediction {
 
 		float predictionSeconds = baseSlice.gameSeconds;
 		while (prediction.size() < expectedNumSlices) {
-			ball.step(stepInterval, gravity);
+			ball.step(stepInterval);
 			predictionSeconds += stepInterval;
 
 			BallSlice predicted;

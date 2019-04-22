@@ -1,7 +1,7 @@
 #pragma once
 
-#include "inc\vec.h"
-#include "inc\Ball.h"
+#include "simulation/ball.h"
+#include "linear_algebra/vec.h"
 #include <list>
 
 namespace BallPrediction {
